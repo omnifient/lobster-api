@@ -5,6 +5,7 @@ pragma solidity ^0.8.9;
 // import "hardhat/console.sol";
 
 import "./NFT.sol";
+import "./NFTURIS.sol";
 
 contract NFTFactory {
     uint256 contractId;
@@ -12,10 +13,19 @@ contract NFTFactory {
 
     event CreateNFTEvent(uint256 _clientId, address _clientAddress, string _name, string _symbol, address _contractAddress);
 
-    function createNFT(uint256 _clientId, address _clientAddress, string calldata _name, string calldata _symbol) external {
-        NFT newNFTContract = new NFT(_clientAddress, _name, _symbol);
+    function createNFT(uint256 _clientId, address _clientAddress, string calldata _name, string calldata _symbol, string[] calldata _ipfsURIS) external {
+        NFTURIS newNFTContract = new NFTURIS(_clientAddress, _name, _symbol, _ipfsURIS);
         childContracts[_clientId][contractId] = address(newNFTContract);
         contractId += 1;
+
         emit CreateNFTEvent(_clientId, _clientAddress, _name, _symbol, address(newNFTContract));     
     }
+
+    // function createNFT(uint256 _clientId, address _clientAddress, string calldata _name, string calldata _symbol) external {
+    //     NFT newNFTContract = new NFT(_clientAddress, _name, _symbol);
+    //     childContracts[_clientId][contractId] = address(newNFTContract);
+    //     contractId += 1;
+
+    //     emit CreateNFTEvent(_clientId, _clientAddress, _name, _symbol, address(newNFTContract));     
+    // }
 }
