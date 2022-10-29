@@ -1,6 +1,7 @@
 import dotenv from 'dotenv';
 import express from 'express';
 import { Pool } from 'pg';
+import cors from 'cors';
 
 import ClientService from './services/ClientService';
 import UserService from './services/UserService';
@@ -18,6 +19,7 @@ import {NFT_FACTORY_ADDRESS, NETWORKS} from "./constants";
 
 const app = express();
 
+app.use(cors())
 app.use(express.json()); // for parsing application/json
 app.use(express.urlencoded({ extended: true })); // for parsing application/x-www-form-urlencoded
 
