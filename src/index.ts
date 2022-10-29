@@ -6,11 +6,12 @@ import { NETWORKS, NFT_FACTORY_ADDRESS } from './constants';
 import ClientService from './services/ClientService';
 import UserService from './services/UserService';
 
-const { ethers } = require("ethers");
+import { ethers } from "ethers";
+
+import NFTFactoryJSON from "./contracts/NFTFactory.sol/NFTFactory.json";
+import NFTJSON from "./contracts/NFT.sol/NFT.json";
+
 dotenv.config();
-
-const NFTFactoryJSON = require("./contracts/NFTFactory.sol/NFTFactory.json");
-
 const app = express();
 
 app.use(express.json()); // for parsing application/json
@@ -33,11 +34,6 @@ const clientService = new ClientService(pool);
 
 // ONBOARD CLIENTS
 // TODO: TBI
-
-app.get('/', async (req, res) => {
-  const r = await userService.getUserAddress(1, 1);
-  res.send(r);
-});
 
 // CREATE USER ACCOUNT
 app.post("/account/:clientId", async (req, res) => {
@@ -152,13 +148,14 @@ app.post("/nft/contract/:clientId", async (req, res) => {
 });
 
 // MINT NFT
-app.post("/nft/collection/:collectionId", (req, res) => {
+app.post("/nft/collection/:collectionId", async (req, res) => {
   // mock NFT contract address: 0x2c1D208C28A534B87bb11f8E8e80dc26ba1c7cf0
   // mint an nft of the collection
   /* 
     JSON Metadata 
     {
-
+      userId: string,
+      ipfsURI: string
     }
 
     SQL Metadata 
@@ -168,7 +165,34 @@ app.post("/nft/collection/:collectionId", (req, res) => {
       collectionId: string
     }
   */
-  res.json({ hello: "world" });
+  try {
+    const collectionId = req.params.collectionId;
+
+    const clientId = req.body.clientId;
+    const userId = req.body.userId;
+    const ipfsURI = req.body.ipfsURI;
+
+    // get collection address from db
+    const collections = await clientService.getCollectionAddresses(clientId);
+    collections.filter((collection) => collection.id === collectionId);
+
+    // get client wallet address public + private key from database
+    const provider = new ethers.providers.JsonRpcProvider(NETWORKS["mumbai"]);
+    const privateKey = await userService.getUserAddress(userId, clientId);
+
+    // ethers create wallet
+    const wallet = new ethers.Wallet(privateKey, provider);
+
+    // ethers.js mint nft
+    const nftContract = await new ethers.Contract(collectionId, NFTJSON.abi, wallet);
+    const tx = await nftContract.connect(wallet).mint(wallet.address, ipfsURI);
+    await tx.wait();
+
+    res.status(202).send(`Minted token for ${wallet.address} at ${collectionId}`);
+
+  } catch (error) {
+    res.status(500).send(error);
+  }
 });
 
 // UPDATE NFT
