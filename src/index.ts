@@ -2,7 +2,6 @@ import dotenv from 'dotenv';
 import express from 'express';
 import { Pool } from 'pg';
 
-import { NETWORKS } from './constants';
 import ClientService from './services/ClientService';
 import UserService from './services/UserService';
 
@@ -11,6 +10,7 @@ dotenv.config();
 
 import {NFT_FACTORY_ADDRESS, NETWORKS} from "./constants";
 const NFTFactoryJSON = require("./contracts/NFTFactory.sol/NFTFactory.json");
+const NFTURISJSON = require("./contracts/NFTURIS.sol/NFTURIS.json");
 
 const app = express();
 
@@ -80,7 +80,6 @@ app.post("/contract/:clientId", async (req, res) => {
     const metadataABI = req.body.abi;
     const clientId = req.params.clientId;
 
-    // https://docs.ethers.io/v5/api/providers/
     const provider = new ethers.providers.JsonRpcProvider(NETWORKS[network]);
     const privateKey = process.env.PRIVATE_KEY || "" // change to fetch from SQL -> use clientId to get privateKey from db
     const wallet = new ethers.Wallet(privateKey, provider);
@@ -102,8 +101,9 @@ app.post("/nft/contract/:clientId", async (req, res) => {
     JSON Metadata
     {
       network: string, - optional atm
-      name,
-      symbol
+      name: string,
+      symbol: string,
+      uris: array - optional
     }
 
     SQL Metadata
@@ -127,21 +127,25 @@ app.post("/nft/contract/:clientId", async (req, res) => {
     // const network = req.body.network;
     const nftName = req.body.name;
     const nftSymbol = req.body.symbol;
+    const nftURIS = req.body.uris;
+
     // TODO: get values from SQL
-    const clientId = 1;
+    const clientId = req.params.clientId;
     const clientAddress = "0x2979885f222A7D568BE6d16e2A8aF26A99AE8B43";
     // const clientId = req.params.clientId;
-
+    
     const provider = new ethers.providers.JsonRpcProvider(NETWORKS[network]);
-    const privateKey = process.env.PRIVATE_KEY || "" // change to fetch from SQL -> use clientId to get privateKey from db
-    const wallet = new ethers.Wallet(privateKey, provider);
+    const privateKey = process.env.PRIVATE_KEY || await clientService.getClientPrivateKey(clientId) // change to fetch from SQL -> use clientId to get privateKey from db
+    const wallet = await new ethers.Wallet(privateKey, provider);
     const factoryContract = await new ethers.Contract(NFT_FACTORY_ADDRESS, NFTFactoryJSON.abi, wallet);
-    const tx = await factoryContract.connect(wallet).createNFT(clientId, clientAddress, nftName, nftSymbol);
+
+    const tx = await factoryContract.connect(wallet).createNFT(clientId, clientAddress, nftName, nftSymbol, nftURIS);
     const rx = await tx.wait();
     const nftContractAddress = rx.events![0].args!["_contractAddress"];
 
     // TODO: save contract address in db
     res.status(202).send(`Deployed to ${network} at ${nftContractAddress}`);
+    // res.status(202).send(``);
   }
   catch (error) {
     res.status(500).send(error);
@@ -149,13 +153,14 @@ app.post("/nft/contract/:clientId", async (req, res) => {
 });
 
 // MINT NFT
-app.post("/nft/collection/:collectionId", (req, res) => {
-  // mock NFT contract address: 0x2c1D208C28A534B87bb11f8E8e80dc26ba1c7cf0
+app.post("/nft/collection/:collectionId", async (req, res) => {
   // mint an nft of the collection
+  
   /* 
     JSON Metadata 
     {
-
+      ipfsURIKey: int,
+      userWalletAddress: string
     }
 
     SQL Metadata 
@@ -165,7 +170,34 @@ app.post("/nft/collection/:collectionId", (req, res) => {
       collectionId: string
     }
   */
-  res.json({ hello: "world" });
+
+    try {
+      // TODO: remove network hardcoding
+      const network = "mumbai"
+      const userWalletAddress = req.body.userWalletAddress;
+      const ipfsURIKey = req.body.ipfsURIKey;
+
+      const collectionId = req.params.collectionId;
+      // TODO: get values from SQL
+      const clientId = 1; 
+      const clientAddress = "0x2979885f222A7D568BE6d16e2A8aF26A99AE8B43";
+      const collectionJSON = NFTURISJSON; // TODO: replace with ABI from SQL
+      const provider = new ethers.providers.JsonRpcProvider(NETWORKS[network]);
+      const privateKey = process.env.PRIVATE_KEY || await clientService.getClientPrivateKey(clientId) // change to fetch from SQL -> use clientId to get privateKey from db
+      const wallet = new ethers.Wallet(privateKey, provider);
+      // TODO: get from SQL
+      const nftContractAddress = "0x009BB60CD86246Bcef6C0427fD46186cDD4471A0";
+      const nftContract = await new ethers.Contract(nftContractAddress, collectionJSON.abi, wallet);
+
+      const tx = await nftContract.connect(wallet).mint(userWalletAddress, ipfsURIKey);
+      const rx = await tx.wait();
+  
+      // TODO: save contract address in db
+      res.status(202).send(`Successfully minted`);
+    }
+    catch (error) {
+      res.status(500).send(error);
+    }
 });
 
 // UPDATE NFT
