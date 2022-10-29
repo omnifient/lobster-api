@@ -142,6 +142,7 @@ app.post("/nft/contract/:clientId", async (req, res) => {
     const rx = await tx.wait();
     const nftContractAddress = rx.events![0].args!["_contractAddress"];
 
+    await clientService.insertCollection(clientId, nftContractAddress);
     // TODO: save contract address in db
     res.status(202).send(`Deployed to ${network} at ${nftContractAddress}`);
   }
