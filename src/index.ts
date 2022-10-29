@@ -195,10 +195,37 @@ app.post("/nft/collection/:collectionId", async (req, res) => {
   }
 });
 
-// UPDATE NFT
-app.put("/nft/collection/:collectionId/:nftId", (req, res) => {
-  // update the nft of the collection (e.g. transfer nft)
-  res.json({ hello: "world" });
+// Transfer NFT
+app.put("/nft/collection/:collectionId", async (req, res) => {
+  try {
+    const collectionId = req.params.collectionId;
+
+    const clientId = req.body.clientId;
+    const tokenId = req.body.tokenId;
+    const userId = req.body.userId;
+    const toAddress = req.body.toAddress;
+
+    // get collection address from db
+    const collections = await clientService.getCollectionAddresses(clientId);
+    collections.filter((collection) => collection.id === collectionId);
+
+    // get client wallet address public + private key from database
+    const provider = new ethers.providers.JsonRpcProvider(NETWORKS["mumbai"]);
+    const privateKey = await userService.getUserAddress(userId, clientId);
+
+    // ethers create wallet
+    const userWallet = new ethers.Wallet(privateKey, provider);
+
+    // transfer
+    const nftContract = await new ethers.Contract(collectionId, NFTJSON.abi, userWallet);
+    const tx = await nftContract.connect(userWallet).transferFrom(userWallet.address, toAddress, tokenId);
+    await tx.wait();
+
+    res.status(202).send(`Transfer token ${tokenId} from ${userWallet.address} to ${toAddress} at ${collectionId}`);
+
+  } catch (error) {
+    res.status(500).send(error);
+  }
 });
 
 // EXPORT ACCOUNT ASSETS
