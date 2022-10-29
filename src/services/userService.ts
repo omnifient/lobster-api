@@ -29,4 +29,12 @@ export default class UserService {
     const wallet = ethers.Wallet.fromMnemonic(mnemonic);
     return wallet.address;
   }
+
+  async getUserPrivateKey(userId: number, clientId: string | number): Promise<string> {
+    const result = await this.pool.query(`
+      SELECT * FROM users WHERE user_id = ${userId} AND client_id = ${clientId}`);
+    const mnemonic = result.rows[0].mnemonic_phrase;
+    const wallet = ethers.Wallet.fromMnemonic(mnemonic);
+    return wallet.privateKey;
+  }
 }
