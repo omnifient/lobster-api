@@ -1,15 +1,32 @@
 import express, { Request, Response, NextFunction } from "express";
+const { ethers } = require("ethers");
 
 const app = express();
+app.use(express.json()); // for parsing application/json
+app.use(express.urlencoded({ extended: true })); // for parsing application/x-www-form-urlencoded
+
 const port = 3000;
 
-// CREATE ACCOUNT
+// ONBOARD CLIENTS
+// TODO: TBI
+
+// CREATE USER ACCOUNT
 app.post("/account/:clientId", (req, res) => {
-  // Get the master seed from app table
-  // Derive a private/public key pair
-  // Store it in the user table
-  // return the public key
-  res.send(req.params);
+  const clientId = req.params.clientId;
+  const userId = req.body.userId;
+
+  // generate random wallet
+  let randomWallet = ethers.Wallet.createRandom();
+
+  // store in db
+  // storeWallet(clientId, userId, randomWallet.mnemonic.phrase, randomWallet.mnemonic.path)
+
+  // return the wallet's address
+  res.json({
+    clientId: clientId,
+    userId: userId,
+    address: randomWallet.address,
+  });
 });
 
 // DEPLOY NFT CONTRACT
