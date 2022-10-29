@@ -253,4 +253,6 @@ app.listen(port, () => {
   console.log(`Lobster api is running on port ${port}.`);
 });
 
-
+process.on('SIGTERM', () => {
+  pool.end();
+});
