@@ -7,8 +7,9 @@ const { ethers } = require("ethers");
 dotenv.config();
 
 import {NFT_FACTORY_ADDRESS, NETWORKS} from "./constants";
-
+const NFTFactoryJSON = require("./contracts/NFTFactory.sol/NFTFactory.json");
 const app = express();
+
 app.use(express.json()); // for parsing application/json
 app.use(express.urlencoded({ extended: true })); // for parsing application/x-www-form-urlencoded
 
@@ -36,13 +37,13 @@ app.post("/account/:clientId", (req, res) => {
   });
 });
 
-// DEPLOY NFT CONTRACT
-app.post("/nft/contract/:clientId", async (req, res) => {
+// DEPLOY ANY SMART CONTRACT
+app.post("/contract/:clientId", async (req, res) => {
   /* 
     JSON Metadata
     {
       network: string, - optional atm
-      abi: string
+      abi: string containing abi & bytecode
     }
 
     SQL Metadata
@@ -53,6 +54,47 @@ app.post("/nft/contract/:clientId", async (req, res) => {
   
   */
 
+  try {
+    // TODO: remove network hardcoding
+    const network = "mumbai"
+    // const network = req.body.network;
+    const metadataABI = req.body.abi;
+    const clientId = req.params.clientId;
+
+    // https://docs.ethers.io/v5/api/providers/
+    const provider = new ethers.providers.JsonRpcProvider(NETWORKS[network]);
+    const privateKey = process.env.PRIVATE_KEY || "" // change to fetch from SQL -> use clientId to get privateKey from db
+    const wallet = new ethers.Wallet(privateKey, provider);
+    const factory = new ethers.ContractFactory(metadataABI.abi, metadataABI.bytecode, wallet);
+    const contract = await factory.deploy();
+    await contract.deployed();
+
+    // TODO: save contract address in db
+    res.status(202).send(`Deployed to ${network} at ${contract.address}`);
+  }
+  catch (error) {
+    res.status(500).send(error);
+  }
+});
+
+// DEPLOY NFT SMART CONTRACT
+app.post("/nft/contract/:clientId", async (req, res) => {
+  /* 
+    JSON Metadata
+    {
+      network: string, - optional atm
+      name,
+      symbol
+    }
+
+    SQL Metadata
+    {
+      clientId: string,
+      clientPublicKey: string
+    }
+  
+  */
+  
   /* 
     // 0. predeploy factory smart contract
     // 1. get client wallet address public + private key from database
@@ -60,24 +102,27 @@ app.post("/nft/contract/:clientId", async (req, res) => {
     // 3. ethers.js deploy smart contract
     // 4. save smart contract address in db linked to client id
   */
-
   try {
     // TODO: remove network hardcoding
     const network = "mumbai"
     // const network = req.body.network;
-    const metadata = req.body.abi;
-    const clientId = req.params.clientId;
+    const nftName = req.body.name;
+    const nftSymbol = req.body.symbol;
+    // TODO: get values from SQL
+    const clientId = 1;
+    const clientAddress = "0x2979885f222A7D568BE6d16e2A8aF26A99AE8B43";
+    // const clientId = req.params.clientId;
 
-    // https://docs.ethers.io/v5/api/providers/
     const provider = new ethers.providers.JsonRpcProvider(NETWORKS[network]);
     const privateKey = process.env.PRIVATE_KEY || "" // change to fetch from SQL -> use clientId to get privateKey from db
     const wallet = new ethers.Wallet(privateKey, provider);
-    const factory = new ethers.ContractFactory(metadata.abi, metadata.bytecode, wallet);
-    const contract = await factory.deploy();
-    await contract.deployed();
+    const factoryContract = await new ethers.Contract(NFT_FACTORY_ADDRESS, NFTFactoryJSON.abi, wallet);
+    const tx = await factoryContract.connect(wallet).createNFT(clientId, clientAddress, nftName, nftSymbol);
+    const rx = await tx.wait();
+    const nftContractAddress = rx.events![0].args!["_contractAddress"];
 
     // TODO: save contract address in db
-    res.status(202).send(`Deployed on ${network} at ${contract.address}`);
+    res.status(202).send(`Deployed to ${network} at ${nftContractAddress}`);
   }
   catch (error) {
     res.status(500).send(error);
@@ -86,7 +131,21 @@ app.post("/nft/contract/:clientId", async (req, res) => {
 
 // MINT NFT
 app.post("/nft/collection/:collectionId", (req, res) => {
+  // mock NFT contract address: 0x2c1D208C28A534B87bb11f8E8e80dc26ba1c7cf0
   // mint an nft of the collection
+  /* 
+    JSON Metadata 
+    {
+
+    }
+
+    SQL Metadata 
+    {
+      clientId: string,
+      clientPublicKey: string,
+      collectionId: string
+    }
+  */
   res.json({ hello: "world" });
 });
 
