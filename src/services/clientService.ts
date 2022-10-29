@@ -27,6 +27,11 @@ export default class ClientService {
     return result.rows.map((row) => row.contract_address);
   }
 
+  async getCollectionAddress(clientId: string | number, collectionId: string | number): Promise<string> {
+    const result = await this.pool.query(`SELECT * FROM collections WHERE client_id = ${clientId} AND id = ${collectionId}`);
+    return result.rows[0].contract_address;
+  }
+
   async insertCollection(clientId: string | number, contractAddress: string) {
     await this.pool.query(`INSERT INTO collections (client_id, contract_address) VALUES (${clientId}, '${contractAddress}')`);
   }

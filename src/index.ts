@@ -138,7 +138,7 @@ app.post("/nft/contract/:clientId", async (req, res) => {
 });
 
 // MINT NFT
-app.post("/nft/collection/:collectionId", async (req, res) => {
+app.post("/nft/collection/:clientId/:collectionId", async (req, res) => {
   // mint an nft of the collection
   
   /* 
@@ -146,40 +146,32 @@ app.post("/nft/collection/:collectionId", async (req, res) => {
     {
       network: string - optional,
       ipfsURIKey: int,
-      userWalletAddress: string
-    }
-
-    SQL Metadata 
-    {
-      clientId: string,
-      clientPublicKey: string,
-      collectionId: string
+      userId: int
     }
   */
 
     try {
-      // TODO: remove network hardcoding
       const network = req.body.network || "mumbai";
-      const userWalletAddress = req.body.userWalletAddress;
       const ipfsURIKey = req.body.ipfsURIKey;
+      const userId = req.body.userId;
 
       const collectionId = req.params.collectionId;
-      // TODO: get values from SQL
-      const clientId = 1; 
-      const clientAddress = "0x2979885f222A7D568BE6d16e2A8aF26A99AE8B43";
+      const clientId = req.params.clientId; 
+
       const collectionJSON = NFTURISJSON; // TODO: replace with ABI from SQL
+      const userWalletAddress = await userService.getUserAddress(userId, clientId);
+
       const provider = new ethers.providers.JsonRpcProvider(NETWORKS[network]);
-      const privateKey = process.env.PRIVATE_KEY || await clientService.getClientPrivateKey(clientId) // change to fetch from SQL -> use clientId to get privateKey from db
+      const privateKey = await clientService.getClientPrivateKey(clientId) || process.env.PRIVATE_KEY;
       const wallet = new ethers.Wallet(privateKey, provider);
-      // TODO: get from SQL
-      const nftContractAddress = "0x009BB60CD86246Bcef6C0427fD46186cDD4471A0";
+      
+      const nftContractAddress = await clientService.getCollectionAddress(clientId, collectionId);
       const nftContract = await new ethers.Contract(nftContractAddress, collectionJSON.abi, wallet);
 
       const tx = await nftContract.connect(wallet).mint(userWalletAddress, ipfsURIKey);
       const rx = await tx.wait();
   
-      // TODO: save contract address in db
-      res.status(202).send(`Successfully minted`);
+      res.status(202).send(`Successfully minted NFT to ${userWalletAddress}`);
     }
     catch (error) {
       res.status(500).send(error);
