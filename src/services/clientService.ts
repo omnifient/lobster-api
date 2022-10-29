@@ -20,4 +20,7 @@ export default class ClientService {
     return result.rows.map((row) => row.contract_address);
   }
 
+  async insertCollection(clientId: string | number, contractAddress: string) {
+    await this.pool.query(`INSERT INTO collections (client_id, contract_address) VALUES (${clientId}, '${contractAddress}')`);
+  }
 }
