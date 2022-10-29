@@ -1,32 +1,55 @@
-import * as dotenv from "dotenv";
+import dotenv from 'dotenv';
+import express from 'express';
+import { Pool } from 'pg';
 
-import { constants } from "buffer";
-import express, { Request, Response, NextFunction } from "express";
+import { NETWORKS } from './constants';
+import ClientService from './services/ClientService';
+import UserService from './services/UserService';
+
 const { ethers } = require("ethers");
-
 dotenv.config();
-
-import {NFT_FACTORY_ADDRESS, NETWORKS} from "./constants";
 
 const app = express();
 app.use(express.json()); // for parsing application/json
 app.use(express.urlencoded({ extended: true })); // for parsing application/x-www-form-urlencoded
 
 const port = 3000;
+const pool = new Pool({
+  user: process.env.PGUSER,
+  host: process.env.PGHOST,
+  database: process.env.PGDATABASE,
+  password: process.env.PGPASSWORD,
+  port: process.env.PGPORT,
+  ssl: {
+    rejectUnauthorized: false
+  }
+});
+
+const userService = new UserService(pool);
+const clientService = new ClientService(pool);
+
+app.get("/db", async (req, res) => {
+  const dbCall = await pool.query('SELECT * FROM users');
+  console.log(dbCall);
+
+  return res.send(dbCall.rows);
+})
 
 // ONBOARD CLIENTS
 // TODO: TBI
 
 // CREATE USER ACCOUNT
-app.post("/account/:clientId", (req, res) => {
+app.post("/account/:clientId", async (req, res) => {
   const clientId = req.params.clientId;
+  // userId will be implemented globally (as part of a unique DB table)
+  // we could thing of a table interal id to external id mapping
   const userId = req.body.userId;
 
   // generate random wallet
   let randomWallet = ethers.Wallet.createRandom();
-
+  
   // store in db
-  // storeWallet(clientId, userId, randomWallet.mnemonic.phrase, randomWallet.mnemonic.path)
+  await userService.storeWallet(userId, clientId, randomWallet.mnemonic.phrase, randomWallet.mnemonic.path);
 
   // return the wallet's address
   res.json({
@@ -107,3 +130,5 @@ app.get("/account/export/:userId/:targetAddress", (req, res) => {
 app.listen(port, () => {
   console.log(`Lobster api is running on port ${port}.`);
 });
+
+
