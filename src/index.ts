@@ -1,5 +1,12 @@
+import * as dotenv from "dotenv";
+
+import { constants } from "buffer";
 import express, { Request, Response, NextFunction } from "express";
 const { ethers } = require("ethers");
+
+dotenv.config();
+
+import {NFT_FACTORY_ADDRESS, NETWORKS} from "./constants";
 
 const app = express();
 app.use(express.json()); // for parsing application/json
@@ -30,10 +37,51 @@ app.post("/account/:clientId", (req, res) => {
 });
 
 // DEPLOY NFT CONTRACT
-app.post("/nft/contract/:clientId", (req, res) => {
-  // deploy smart contract for client_id
-  // returns contract id
-  res.json({ hello: "world" });
+app.post("/nft/contract/:clientId", async (req, res) => {
+  /* 
+    JSON Metadata
+    {
+      network: string, - optional atm
+      abi: string
+    }
+
+    SQL Metadata
+    {
+      clientId: string,
+      clientPublicKey: string
+    }
+  
+  */
+
+  /* 
+    // 0. predeploy factory smart contract
+    // 1. get client wallet address public + private key from database
+    // 2. ethers create wallet
+    // 3. ethers.js deploy smart contract
+    // 4. save smart contract address in db linked to client id
+  */
+
+  try {
+    // TODO: remove network hardcoding
+    const network = "mumbai"
+    // const network = req.body.network;
+    const metadata = req.body.abi;
+    const clientId = req.params.clientId;
+
+    // https://docs.ethers.io/v5/api/providers/
+    const provider = new ethers.providers.JsonRpcProvider(NETWORKS[network]);
+    const privateKey = process.env.PRIVATE_KEY || "" // change to fetch from SQL -> use clientId to get privateKey from db
+    const wallet = new ethers.Wallet(privateKey, provider);
+    const factory = new ethers.ContractFactory(metadata.abi, metadata.bytecode, wallet);
+    const contract = await factory.deploy();
+    await contract.deployed();
+
+    // TODO: save contract address in db
+    res.status(202).send(`Deployed on ${network} at ${contract.address}`);
+  }
+  catch (error) {
+    res.status(500).send(error);
+  }
 });
 
 // MINT NFT

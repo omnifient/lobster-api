@@ -8,7 +8,7 @@ pragma solidity ^0.8.9;
 import "@openzeppelin/contracts/token/ERC721/extensions/ERC721URIStorage.sol";
 import"@openzeppelin/contracts/utils/Counters.sol";
 
-
+// TODO: add ownable library
 contract NFT is ERC721URIStorage {
     using Counters for Counters.Counter;
     Counters.Counter private _tokenIds;
@@ -21,7 +21,7 @@ contract NFT is ERC721URIStorage {
     }
 
     constructor(address _clientSender, string memory _name, string memory _symbol) ERC721(_name, _symbol) {        
-        owners[_clientSender] = true;
+        owner = _clientSender;
     }
     
     function mint(address _to, string calldata _ifpsURI) external isOwner {
