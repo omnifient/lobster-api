@@ -15,4 +15,9 @@ export default class ClientService {
     return wallet.privateKey;
   }
 
+  async getCollectionAddresses(clientId: string | number): Promise<string[]> {
+    const result = await this.pool.query(`SELECT * FROM collections WHERE client_id = ${clientId}`);
+    return result.rows.map((row) => row.contract_address);
+  }
+
 }

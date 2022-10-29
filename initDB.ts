@@ -35,6 +35,14 @@ const createTables = async () => {
       CONSTRAINT fk_client_id FOREIGN KEY (client_id) REFERENCES clients(id),
       created_at TIMESTAMP NOT NULL DEFAULT NOW(), 
       updated_at TIMESTAMP NOT NULL DEFAULT NOW())`);
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS collections (
+      id SERIAL PRIMARY KEY, 
+      client_id INT NOT NULL,
+      contract_address VARCHAR(255) NOT NULL, 
+      CONSTRAINT fk_client_id FOREIGN KEY (client_id) REFERENCES clients(id),
+      created_at TIMESTAMP NOT NULL DEFAULT NOW(), 
+      updated_at TIMESTAMP NOT NULL DEFAULT NOW())`);
 };
 
 const populateTables = async () => {
@@ -45,6 +53,13 @@ const populateTables = async () => {
       VALUES (
         'match occur govern need wet place aisle space beef sport romance wrap sustain upon multiply', 
         '${"m/44''/0''/0''/0"}')`);
+
+  await pool.query(`
+    INSERT INTO collections (client_id, contract_address) 
+      VALUES 
+        (1, '0x123456789'),
+        (1, '0x0987654321')
+      `);
 };
 
 const main = async () => {
