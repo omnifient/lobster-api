@@ -2,14 +2,13 @@ import dotenv from 'dotenv';
 import express from 'express';
 import { Pool } from 'pg';
 
-import { NETWORKS } from './constants';
+import { NETWORKS, NFT_FACTORY_ADDRESS } from './constants';
 import ClientService from './services/ClientService';
 import UserService from './services/UserService';
 
 const { ethers } = require("ethers");
 dotenv.config();
 
-import {NFT_FACTORY_ADDRESS, NETWORKS} from "./constants";
 const NFTFactoryJSON = require("./contracts/NFTFactory.sol/NFTFactory.json");
 
 const app = express();
@@ -38,8 +37,6 @@ const clientService = new ClientService(pool);
 // CREATE USER ACCOUNT
 app.post("/account/:clientId", async (req, res) => {
   const clientId = req.params.clientId;
-  // userId will be implemented globally (as part of a unique DB table)
-  // we could thing of a table interal id to external id mapping
   const userId = req.body.userId;
 
   // generate random wallet
