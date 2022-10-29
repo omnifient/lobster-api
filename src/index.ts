@@ -34,6 +34,11 @@ const clientService = new ClientService(pool);
 // ONBOARD CLIENTS
 // TODO: TBI
 
+app.get('/', async (req, res) => {
+  const r = await userService.getUserAddress(1, 1);
+  res.send(r);
+});
+
 // CREATE USER ACCOUNT
 app.post("/account/:clientId", async (req, res) => {
   const clientId = req.params.clientId;
