@@ -28,13 +28,6 @@ const pool = new Pool({
 const userService = new UserService(pool);
 const clientService = new ClientService(pool);
 
-app.get("/db", async (req, res) => {
-  const dbCall = await pool.query('SELECT * FROM users');
-  console.log(dbCall);
-
-  return res.send(dbCall.rows);
-})
-
 // ONBOARD CLIENTS
 // TODO: TBI
 
