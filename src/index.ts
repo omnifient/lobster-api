@@ -1,9 +1,9 @@
-import express, { Request, Response, NextFunction } from 'express';
+import express, { Request, Response, NextFunction } from "express";
 
 const app = express();
 const port = 3000;
 
-app.post('/account/:clientId', (req, res) => {
+app.post("/account/:clientId", (req, res) => {
   // Get the master seed from app table
   // Derive a private/public key pair
   // Store it in the user table
@@ -11,7 +11,23 @@ app.post('/account/:clientId', (req, res) => {
   res.send(req.params);
 });
 
-app.get('/account/export/:userId/:targetAddress', (req, res) => {
+app.post("/nft/contract/:clientId", (req, res) => {
+  // deploy smart contract for client_id
+  // returns contract id
+  res.json({ hello: "world" });
+});
+
+app.post("/nft/collection/:collectionId", (req, res) => {
+  // mint an nft of the collection
+  res.json({ hello: "world" });
+});
+
+app.put("/nft/collection/:collectionId/:nftId", (req, res) => {
+  // update the nft of the collection (e.g. transfer nft)
+  res.json({ hello: "world" });
+});
+
+app.get("/account/export/:userId/:targetAddress", (req, res) => {
   // ?? targetAddress: is the userId (public key) the only thing needed?
   // Get the private key in the user table from the userId
   // return it
