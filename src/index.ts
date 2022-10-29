@@ -229,10 +229,38 @@ app.put("/nft/collection/:collectionId", async (req, res) => {
 });
 
 // EXPORT ACCOUNT ASSETS
-app.get("/account/export/:userId/:targetAddress", (req, res) => {
-  // ?? targetAddress: is the userId (public key) the only thing needed?
-  // Get the private key in the user table from the userId
-  // return it
+app.get("/account/export/:clientId/:userId", async (req, res) => {
+
+  try {
+    const collectionsToId: {collectionAddress: string, tokenIds: number[]}[] = req.body.collectionsToId;
+    const toAddress = req.body.toAddress;
+
+    const userId = req.params.userId;
+    const clientId = req.params.clientId;
+
+    // get the user public key/private key from the database
+    const provider = new ethers.providers.JsonRpcProvider(NETWORKS["mumbai"]);
+    const privateKey = await userService.getUserAddress(userId, clientId);
+
+    // ethers create wallet
+    const userWallet = new ethers.Wallet(privateKey, provider);
+
+    // transfer
+    const promises = Promise.all(collectionsToId.map(async (collectionToId) => {
+      const nftContract = await new ethers.Contract(collectionToId.collectionAddress, NFTJSON.abi, userWallet);
+      await Promise.all(collectionToId.tokenIds.map(async (tokenId) => {
+        const tx = await nftContract.connect(userWallet).transferFrom(userWallet.address, toAddress, tokenId);
+        await tx.wait();
+      }));
+    }));
+
+    await promises;
+    res.status(202).send(`Transfered all tokens from ${userWallet.address} to ${toAddress}`);
+  } catch (error) {
+    res.status(500).send(error);
+  }
+
+  // array of all the nft contracts the user has
   res.send(req.params);
 });
 
