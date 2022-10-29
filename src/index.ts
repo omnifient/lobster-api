@@ -77,13 +77,12 @@ app.post("/contract/:clientId", async (req, res) => {
 
   try {
     // TODO: remove network hardcoding
-    const network = "mumbai"
-    // const network = req.body.network;
+    const network = req.body.network || "mumbai";
     const metadataABI = req.body.abi;
     const clientId = req.params.clientId;
 
     const provider = new ethers.providers.JsonRpcProvider(NETWORKS[network]);
-    const privateKey = process.env.PRIVATE_KEY || "" // change to fetch from SQL -> use clientId to get privateKey from db
+    const privateKey = await clientService.getClientPrivateKey(clientId) || process.env.PRIVATE_KEY // change to fetch from SQL -> use clientId to get privateKey from db
     const wallet = new ethers.Wallet(privateKey, provider);
     const factory = new ethers.ContractFactory(metadataABI.abi, metadataABI.bytecode, wallet);
     const contract = await factory.deploy();
@@ -100,55 +99,38 @@ app.post("/contract/:clientId", async (req, res) => {
 // DEPLOY NFT SMART CONTRACT
 app.post("/nft/contract/:clientId", async (req, res) => {
   /* 
-    JSON Metadata
+    JSON Request Schema
     {
       network: string, - optional atm
       name: string,
       symbol: string,
       uris: array - optional
     }
-
-    SQL Metadata
-    {
-      clientId: string,
-      clientPublicKey: string
-    }
-  
   */
   
-  /* 
-    // 0. predeploy factory smart contract
-    // 1. get client wallet address public + private key from database
-    // 2. ethers create wallet
-    // 3. ethers.js deploy smart contract
-    // 4. save smart contract address in db linked to client id
-  */
   try {
     // TODO: remove network hardcoding
-    const network = "mumbai"
-    // const network = req.body.network;
+    const network = req.body.network || "mumbai";
     const nftName = req.body.name;
     const nftSymbol = req.body.symbol;
     const nftURIS = req.body.uris;
 
     // TODO: get values from SQL
     const clientId = req.params.clientId;
-    const clientAddress = "0x2979885f222A7D568BE6d16e2A8aF26A99AE8B43";
-    // const clientId = req.params.clientId;
+    const clientAddress = await clientService.getClientAddress(clientId);
     
     const provider = new ethers.providers.JsonRpcProvider(NETWORKS[network]);
-    const privateKey = process.env.PRIVATE_KEY || await clientService.getClientPrivateKey(clientId) // change to fetch from SQL -> use clientId to get privateKey from db
-    const wallet = await new ethers.Wallet(privateKey, provider);
-    const factoryContract = await new ethers.Contract(NFT_FACTORY_ADDRESS, NFTFactoryJSON.abi, wallet);
+    const privateKey = await clientService.getClientPrivateKey(clientId) || process.env.PRIVATE_KEY;
+    const wallet = new ethers.Wallet(privateKey, provider);
+    const factoryContract = new ethers.Contract(NFT_FACTORY_ADDRESS, NFTFactoryJSON.abi, wallet);
 
     const tx = await factoryContract.connect(wallet).createNFT(clientId, clientAddress, nftName, nftSymbol, nftURIS);
     const rx = await tx.wait();
     const nftContractAddress = rx.events![0].args!["_contractAddress"];
 
     await clientService.insertCollection(clientId, nftContractAddress);
-    // TODO: save contract address in db
-    res.status(202).send(`Deployed to ${network} at ${nftContractAddress}`);
-    // res.status(202).send(``);
+
+    res.status(202).send(`Deployed to ${network} at ${nftContractAddress}`);    
   }
   catch (error) {
     res.status(500).send(error);
@@ -160,8 +142,9 @@ app.post("/nft/collection/:collectionId", async (req, res) => {
   // mint an nft of the collection
   
   /* 
-    JSON Metadata 
+    JSON Request Schema 
     {
+      network: string - optional,
       ipfsURIKey: int,
       userWalletAddress: string
     }
@@ -176,7 +159,7 @@ app.post("/nft/collection/:collectionId", async (req, res) => {
 
     try {
       // TODO: remove network hardcoding
-      const network = "mumbai"
+      const network = req.body.network || "mumbai";
       const userWalletAddress = req.body.userWalletAddress;
       const ipfsURIKey = req.body.ipfsURIKey;
 
