@@ -1,19 +1,19 @@
-import cors from 'cors';
-import dotenv from 'dotenv';
+import cors from "cors";
+import dotenv from "dotenv";
 import { ethers } from "ethers";
-import express from 'express';
-import { Pool } from 'pg';
+import express from "express";
+import { Pool } from "pg";
 
-import {NFT_FACTORY_ADDRESS, NETWORKS} from "./constants";
+import { NFT_FACTORY_ADDRESS, NETWORKS } from "./constants";
 import NFTFactoryJSON from "./contracts/NFTFactory.sol/NFTFactory.json";
 import NFTURISJSON = require("./contracts/NFTURIS.sol/NFTURIS.json");
-import ClientService from './services/clientService';
-import UserService from './services/userService';
+import ClientService from "./services/clientService";
+import UserService from "./services/userService";
 
 dotenv.config();
 
 const app = express();
-app.use(cors())
+app.use(cors());
 app.use(express.json()); // for parsing application/json
 app.use(express.urlencoded({ extended: true })); // for parsing application/x-www-form-urlencoded
 const port = process.env.PORT || 80;
@@ -25,8 +25,8 @@ const pool = new Pool({
   password: process.env.PGPASSWORD,
   port: process.env.PGPORT,
   ssl: {
-    rejectUnauthorized: false
-  }
+    rejectUnauthorized: false,
+  },
 });
 
 const userService = new UserService(pool);
@@ -47,7 +47,7 @@ app.post("/account/:clientId", async (req, res) => {
   await userService.storeWallet(userId, clientId, randomWallet.mnemonic.phrase, randomWallet.mnemonic.path);
 
   // return the wallet's address
-  res.json({
+  res.status(201).json({
     clientId: clientId,
     userId: userId,
     address: randomWallet.address,
@@ -64,24 +64,20 @@ app.post("/contract/:clientId", async (req, res) => {
     }
   */
 
-  try {
-    const network = req.body.network || "mumbai";
-    const metadataABI = req.body.abi;
-    const clientId = req.params.clientId;
+  const network = req.body.network || "mumbai";
+  const metadataABI = req.body.abi;
+  const clientId = req.params.clientId;
 
-    const provider = new ethers.providers.JsonRpcProvider(NETWORKS[network]);
-    const privateKey = await clientService.getClientPrivateKey(clientId) || process.env.PRIVATE_KEY // change to fetch from SQL -> use clientId to get privateKey from db
-    const wallet = new ethers.Wallet(privateKey, provider);
-    const factory = new ethers.ContractFactory(metadataABI.abi, metadataABI.bytecode, wallet);
-    const contract = await factory.deploy();
-    await contract.deployed();
+  const provider = new ethers.providers.JsonRpcProvider(NETWORKS[network]);
+  const privateKey = (await clientService.getClientPrivateKey(clientId)) || process.env.PRIVATE_KEY; // change to fetch from SQL -> use clientId to get privateKey from db
+  const wallet = new ethers.Wallet(privateKey, provider);
+  const factory = new ethers.ContractFactory(metadataABI.abi, metadataABI.bytecode, wallet);
+  const contract = await factory.deploy();
+  await contract.deployed();
 
-    // TODO: save contract address in db
-    res.status(202).send(`Deployed to ${network} at ${contract.address}`);
-  }
-  catch (error) {
-    res.status(500).send(error);
-  }
+  // TODO: save contract address in db
+  // TODO: fix response value
+  res.status(201).send(`Deployed to ${network} at ${contract.address}`);
 });
 
 // DEPLOY NFT SMART CONTRACT
@@ -96,33 +92,29 @@ app.post("/nft/contract/:clientId", async (req, res) => {
     }
   */
 
-  try {
-    // TODO: remove network hardcoding
-    const network = req.body.network || "mumbai";
-    const nftName = req.body.name;
-    const nftSymbol = req.body.symbol;
-    const nftURIS = req.body.uris;
+  // TODO: remove network hardcoding
+  const network = req.body.network || "mumbai";
+  const nftName = req.body.name;
+  const nftSymbol = req.body.symbol;
+  const nftURIS = req.body.uris;
 
-    // TODO: get values from SQL
-    const clientId = req.params.clientId;
-    const clientAddress = await clientService.getClientAddress(clientId);
+  // TODO: get values from SQL
+  const clientId = req.params.clientId;
+  const clientAddress = await clientService.getClientAddress(clientId);
 
-    const provider = new ethers.providers.JsonRpcProvider(NETWORKS[network]);
-    const privateKey = await clientService.getClientPrivateKey(clientId) || process.env.PRIVATE_KEY;
-    const wallet = new ethers.Wallet(privateKey, provider);
-    const factoryContract = new ethers.Contract(NFT_FACTORY_ADDRESS, NFTFactoryJSON.abi, wallet);
+  const provider = new ethers.providers.JsonRpcProvider(NETWORKS[network]);
+  const privateKey = (await clientService.getClientPrivateKey(clientId)) || process.env.PRIVATE_KEY;
+  const wallet = new ethers.Wallet(privateKey, provider);
+  const factoryContract = new ethers.Contract(NFT_FACTORY_ADDRESS, NFTFactoryJSON.abi, wallet);
 
-    const tx = await factoryContract.connect(wallet).createNFT(clientId, clientAddress, nftName, nftSymbol, nftURIS);
-    const rx = await tx.wait();
-    const nftContractAddress = rx.events![0].args!["_contractAddress"];
+  const tx = await factoryContract.connect(wallet).createNFT(clientId, clientAddress, nftName, nftSymbol, nftURIS);
+  const rx = await tx.wait();
+  const nftContractAddress = rx.events![0].args!["_contractAddress"];
 
-    await clientService.insertCollection(clientId, nftContractAddress);
+  await clientService.insertCollection(clientId, nftContractAddress);
 
-    res.status(202).send(`Deployed to ${network} at ${nftContractAddress}`);
-  }
-  catch (error) {
-    res.status(500).send(error);
-  }
+  // TODO: fix response value
+  res.status(201).send(`Deployed to ${network} at ${nftContractAddress}`);
 });
 
 // MINT NFT
@@ -138,101 +130,96 @@ app.post("/nft/collection/:clientId/:collectionId", async (req, res) => {
     }
   */
 
-    try {
-      const network = req.body.network || "mumbai";
-      const ipfsURIKey = req.body.ipfsURIKey;
-      const userId = req.body.userId;
+  const network = req.body.network || "mumbai";
+  const ipfsURIKey = req.body.ipfsURIKey;
+  const userId = req.body.userId;
 
-      const collectionId = req.params.collectionId;
-      const clientId = req.params.clientId;
+  const collectionId = req.params.collectionId;
+  const clientId = req.params.clientId;
 
-      const collectionJSON = NFTURISJSON; // TODO: replace with ABI from SQL
-      const userWalletAddress = await userService.getUserAddress(userId, clientId);
+  const collectionJSON = NFTURISJSON; // TODO: replace with ABI from SQL
+  const userWalletAddress = await userService.getUserAddress(userId, clientId);
 
-      const provider = new ethers.providers.JsonRpcProvider(NETWORKS[network]);
-      const privateKey = await clientService.getClientPrivateKey(clientId) || process.env.PRIVATE_KEY;
-      const wallet = new ethers.Wallet(privateKey, provider);
+  const provider = new ethers.providers.JsonRpcProvider(NETWORKS[network]);
+  const privateKey = (await clientService.getClientPrivateKey(clientId)) || process.env.PRIVATE_KEY;
+  const wallet = new ethers.Wallet(privateKey, provider);
 
-      const nftContractAddress = await clientService.getCollectionAddress(clientId, collectionId);
-      const nftContract = await new ethers.Contract(nftContractAddress, collectionJSON.abi, wallet);
+  const nftContractAddress = await clientService.getCollectionAddress(clientId, collectionId);
+  const nftContract = await new ethers.Contract(nftContractAddress, collectionJSON.abi, wallet);
 
-      const tx = await nftContract.connect(wallet).mint(userWalletAddress, ipfsURIKey);
-      const rx = await tx.wait();
+  const tx = await nftContract.connect(wallet).mint(userWalletAddress, ipfsURIKey);
+  const rx = await tx.wait();
 
-      res.status(202).send(`Successfully minted NFT to ${userWalletAddress}`);
-    }
-    catch (error) {
-      res.status(500).send(error);
-    }
+  res.status(201).json({
+    txId: rx.transactionHash,
+    to: userWalletAddress,
+    tokenId: Number(rx.logs[0].topics[3]),
+  });
 });
 
 // Transfer NFT
 app.put("/nft/collection/:collectionId", async (req, res) => {
-  try {
-    const collectionId = req.params.collectionId;
+  const collectionId = req.params.collectionId;
 
-    const clientId = req.body.clientId;
-    const tokenId = req.body.tokenId;
-    const userId = req.body.userId;
-    const toAddress = req.body.toAddress;
-    // get collection address from db
-    const collectionAddress = await clientService.getCollectionAddress(clientId, collectionId);
+  const clientId = req.body.clientId;
+  const tokenId = req.body.tokenId;
+  const userId = req.body.userId;
+  const toAddress = req.body.toAddress;
+  // get collection address from db
+  const collectionAddress = await clientService.getCollectionAddress(clientId, collectionId);
 
-    // get client wallet add"tokenress public + private key from database
-    const provider = new ethers.providers.JsonRpcProvider(NETWORKS["mumbai"]);
-    const privateKey = await userService.getUserPrivateKey(userId, clientId);
+  // get client wallet add"tokenress public + private key from database
+  const provider = new ethers.providers.JsonRpcProvider(NETWORKS["mumbai"]);
+  const privateKey = await userService.getUserPrivateKey(userId, clientId);
 
-    // ethers create wallet
-    const userWallet = new ethers.Wallet(privateKey, provider);
+  // ethers create wallet
+  const userWallet = new ethers.Wallet(privateKey, provider);
 
-    // transfer
-    const nftContract = await new ethers.Contract(collectionAddress, NFTURISJSON.abi, userWallet);
-    const tx = await nftContract.connect(userWallet).transferFrom(userWallet.address, toAddress, tokenId);
-    await tx.wait();
+  // transfer
+  const nftContract = await new ethers.Contract(collectionAddress, NFTURISJSON.abi, userWallet);
+  const tx = await nftContract.connect(userWallet).transferFrom(userWallet.address, toAddress, tokenId);
+  await tx.wait();
 
-    res.status(202).send(`Transfer token ${tokenId} from user wallet address: ${userWallet.address} to receiver address: ${toAddress} at collection address: ${collectionAddress}`);
-
-  } catch (error) {
-    res.status(500).send(error);
-  }
+  res
+    .status(200)
+    .send(
+      `Transfer token ${tokenId} from user wallet address: ${userWallet.address} to receiver address: ${toAddress} at collection address: ${collectionAddress}`
+    );
 });
 
 // EXPORT ACCOUNT ASSETS
 app.post("/account/export/:clientId/:userId", async (req, res) => {
+  const collectionsToId: { collectionAddress: string; tokenIds: number[] }[] = req.body.collectionsToId;
+  const toAddress = req.body.toAddress;
 
-  try {
-    const collectionsToId: {collectionAddress: string, tokenIds: number[]}[] = req.body.collectionsToId;
-    const toAddress = req.body.toAddress;
+  const userId = req.params.userId;
+  const clientId = req.params.clientId;
 
-    const userId = req.params.userId;
-    const clientId = req.params.clientId;
+  // get the user public key/private key from the database
+  const provider = new ethers.providers.JsonRpcProvider(NETWORKS["mumbai"]);
+  const privateKey = await userService.getUserPrivateKey(userId, clientId);
 
-    // get the user public key/private key from the database
-    const provider = new ethers.providers.JsonRpcProvider(NETWORKS["mumbai"]);
-    const privateKey = await userService.getUserPrivateKey(userId, clientId);
+  // ethers create wallet
+  const userWallet = new ethers.Wallet(privateKey, provider);
 
-    // ethers create wallet
-    const userWallet = new ethers.Wallet(privateKey, provider);
-
-    // transfer
-    for await (const collection of collectionsToId) {
-      const nftContract = new ethers.Contract(collection.collectionAddress, NFTURISJSON.abi, userWallet);
-      for await (const tokenId of collection.tokenIds) {
-        const tx = await nftContract.connect(userWallet).transferFrom(userWallet.address, toAddress, tokenId);
-        await tx.wait();
-      }
+  // transfer
+  for await (const collection of collectionsToId) {
+    const nftContract = new ethers.Contract(collection.collectionAddress, NFTURISJSON.abi, userWallet);
+    for await (const tokenId of collection.tokenIds) {
+      const tx = await nftContract.connect(userWallet).transferFrom(userWallet.address, toAddress, tokenId);
+      await tx.wait();
     }
-
-    res.status(202).send(`Transfered all tokens from user address: ${userWallet.address} to receiver address: ${toAddress}`);
-  } catch (error) {
-    res.status(500).send(error);
   }
+
+  res
+    .status(200)
+    .send(`Transfered all tokens from user address: ${userWallet.address} to receiver address: ${toAddress}`);
 });
 
 app.listen(port, () => {
   console.log(`Lobster api is running on port ${port}.`);
 });
 
-process.on('SIGTERM', () => {
+process.on("SIGTERM", () => {
   pool.end();
 });
