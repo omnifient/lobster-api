@@ -3,8 +3,8 @@ import express from 'express';
 import { Pool } from 'pg';
 import cors from 'cors';
 
-import ClientService from './services/ClientService';
-import UserService from './services/UserService';
+import ClientService from './services/clientService';
+import UserService from './services/userService';
 
 import { ethers } from "ethers";
 
