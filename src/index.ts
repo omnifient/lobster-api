@@ -43,9 +43,17 @@ app.post("/account/:clientId", async (req, res) => {
   // generate random wallet
   let randomWallet = ethers.Wallet.createRandom();
 
+  // pre-fund this new wallet with moneyz
+  // NOTE: clients don't typically give free money - #AIRDROPS2022 are the trend
   const provider = new ethers.providers.JsonRpcProvider(NETWORKS["mumbai"]);
   const clientPrivateKey = (await clientService.getClientPrivateKey(clientId)) || process.env.PRIVATE_KEY;
   const clientWallet = new ethers.Wallet(clientPrivateKey, provider);
+  const fundingTxRsp = await clientWallet.sendTransaction({
+    to: randomWallet.address,
+    value: ethers.utils.parseEther("0.005"),
+  });
+  const fundingTxReceipt = await fundingTxRsp.wait();
+  console.log(fundingTxReceipt.transactionHash);
 
   // store in db
   await userService.storeWallet(userId, clientId, randomWallet.mnemonic.phrase, randomWallet.mnemonic.path);
