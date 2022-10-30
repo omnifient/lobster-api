@@ -29,7 +29,6 @@ export default class ClientService {
 
   async getCollectionAddress(clientId: string | number, collectionId: string | number): Promise<string> {
     const result = await this.pool.query(`SELECT * FROM collections WHERE client_id = ${clientId} AND id = ${collectionId}`);
-    console.log("sql result >>>", result);
     return result.rows[0].contract_address;
   }
 
