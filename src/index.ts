@@ -23,7 +23,7 @@ app.use(cors())
 app.use(express.json()); // for parsing application/json
 app.use(express.urlencoded({ extended: true })); // for parsing application/x-www-form-urlencoded
 
-const port = 3000;
+const port = process.env.PORT || 80;
 const pool = new Pool({
   user: process.env.PGUSER,
   host: process.env.PGHOST,
