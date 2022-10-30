@@ -159,18 +159,27 @@ app.post("/nft/collection/:clientId/:collectionId", async (req, res) => {
 
 // Transfer NFT
 app.put("/nft/collection/:collectionId", async (req, res) => {
-  const collectionId = req.params.collectionId;
-
   const clientId = req.body.clientId;
+  const collectionId = req.params.collectionId;
+  const fromUserId = req.body.fromUserId; // from user id
+  const toUserId = req.body.toUserId; // to user id
+  let toAddress = req.body.toAddress;
   const tokenId = req.body.tokenId;
-  const userId = req.body.userId;
-  const toAddress = req.body.toAddress;
+
+  if (toAddress != null) {
+    // NOOP
+  } else if (toUserId != null) {
+    toAddress = userService.getUserAddress(toUserId, clientId);
+  } else {
+    throw Error("MISSING_PARAMS");
+  }
+
   // get collection address from db
   const collectionAddress = await clientService.getCollectionAddress(clientId, collectionId);
 
   // get client wallet add"tokenress public + private key from database
   const provider = new ethers.providers.JsonRpcProvider(NETWORKS["mumbai"]);
-  const privateKey = await userService.getUserPrivateKey(userId, clientId);
+  const privateKey = await userService.getUserPrivateKey(fromUserId, clientId);
 
   // ethers create wallet
   const userWallet = new ethers.Wallet(privateKey, provider);
@@ -178,13 +187,11 @@ app.put("/nft/collection/:collectionId", async (req, res) => {
   // transfer
   const nftContract = await new ethers.Contract(collectionAddress, NFTURISJSON.abi, userWallet);
   const tx = await nftContract.connect(userWallet).transferFrom(userWallet.address, toAddress, tokenId);
-  await tx.wait();
+  const rx = await tx.wait();
 
-  res
-    .status(200)
-    .send(
-      `Transfer token ${tokenId} from user wallet address: ${userWallet.address} to receiver address: ${toAddress} at collection address: ${collectionAddress}`
-    );
+  res.status(200).json({
+    txId: rx.transactionHash,
+  });
 });
 
 // EXPORT ACCOUNT ASSETS
