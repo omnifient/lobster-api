@@ -43,6 +43,13 @@ app.post("/account/:clientId", async (req, res) => {
   // generate random wallet
   let randomWallet = ethers.Wallet.createRandom();
 
+  const provider = new ethers.providers.JsonRpcProvider(NETWORKS["mumbai"]);
+  const clientPrivateKey = (await clientService.getClientPrivateKey(clientId)) || process.env.PRIVATE_KEY;
+  const clientWallet = new ethers.Wallet(clientPrivateKey, provider);
+
+  // TODO: clients don't typically give free money - #AIRDROPS2022 are the trend
+  clientWallet.sendTransaction({ to: randomWallet.address, value: ethers.utils.parseEther("0.005") });
+
   // store in db
   await userService.storeWallet(userId, clientId, randomWallet.mnemonic.phrase, randomWallet.mnemonic.path);
 
@@ -210,17 +217,19 @@ app.post("/account/export/:clientId/:userId", async (req, res) => {
   const userWallet = new ethers.Wallet(privateKey, provider);
 
   // transfer
+  const txsIds = [];
   for await (const collection of collectionsToId) {
     const nftContract = new ethers.Contract(collection.collectionAddress, NFTURISJSON.abi, userWallet);
     for await (const tokenId of collection.tokenIds) {
       const tx = await nftContract.connect(userWallet).transferFrom(userWallet.address, toAddress, tokenId);
-      await tx.wait();
+      let rx = await tx.wait();
+      txsIds.push(rx.transactionHash);
     }
   }
 
-  res
-    .status(200)
-    .send(`Transfered all tokens from user address: ${userWallet.address} to receiver address: ${toAddress}`);
+  res.status(200).json({
+    txsIds: txsIds,
+  });
 });
 
 app.listen(port, () => {
