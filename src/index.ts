@@ -204,7 +204,7 @@ app.put("/nft/collection/:collectionId", async (req, res) => {
 });
 
 // EXPORT ACCOUNT ASSETS
-app.get("/account/export/:clientId/:userId", async (req, res) => {
+app.post("/account/export/:clientId/:userId", async (req, res) => {
 
   try {
     const collectionsToId: {collectionAddress: string, tokenIds: number[]}[] = req.body.collectionsToId;
@@ -221,22 +221,18 @@ app.get("/account/export/:clientId/:userId", async (req, res) => {
     const userWallet = new ethers.Wallet(privateKey, provider);
 
     // transfer
-    const promises = Promise.all(collectionsToId.map(async (collectionToId) => {
-      const nftContract = await new ethers.Contract(collectionToId.collectionAddress, NFTURISJSON.abi, userWallet);
-      await Promise.all(collectionToId.tokenIds.map(async (tokenId) => {
+    for await (const collection of collectionsToId) {
+      const nftContract = new ethers.Contract(collection.collectionAddress, NFTURISJSON.abi, userWallet);
+      for await (const tokenId of collection.tokenIds) {
         const tx = await nftContract.connect(userWallet).transferFrom(userWallet.address, toAddress, tokenId);
         await tx.wait();
-      }));
-    }));
+      }
+    }
 
-    await promises;
     res.status(202).send(`Transfered all tokens from user address: ${userWallet.address} to receiver address: ${toAddress}`);
   } catch (error) {
     res.status(500).send(error);
   }
-
-  // array of all the nft contracts the user has
-  res.send(req.params);
 });
 
 app.listen(port, () => {
