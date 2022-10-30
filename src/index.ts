@@ -47,9 +47,6 @@ app.post("/account/:clientId", async (req, res) => {
   const clientPrivateKey = (await clientService.getClientPrivateKey(clientId)) || process.env.PRIVATE_KEY;
   const clientWallet = new ethers.Wallet(clientPrivateKey, provider);
 
-  // TODO: clients don't typically give free money - #AIRDROPS2022 are the trend
-  clientWallet.sendTransaction({ to: randomWallet.address, value: ethers.utils.parseEther("0.005") });
-
   // store in db
   await userService.storeWallet(userId, clientId, randomWallet.mnemonic.phrase, randomWallet.mnemonic.path);
 
