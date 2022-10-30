@@ -20,10 +20,15 @@ npm run server
 
 create an account for client 1
 ```bash
+curl -v -X POST "http://localhost:3000/account/1" \
+	-H "Content-Type: application/json" \
+	-d '{"userId": 99}'
+
 curl -v -X POST "https://lobster-api-ethlisbon.herokuapp.com/account/1" \
 	-H "Content-Type: application/json" \
-	-d '{"userId": 1}'
+	-d '{"userId": 999}'
 ```
+
 
 mint an nft of collection 7 from client 1 to user 1
 ```bash
